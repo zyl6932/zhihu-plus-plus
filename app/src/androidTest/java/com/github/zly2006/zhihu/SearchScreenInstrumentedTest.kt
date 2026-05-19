@@ -41,6 +41,7 @@ import com.github.zly2006.zhihu.ui.PREFERENCE_NAME
 import com.github.zly2006.zhihu.ui.SearchScreen
 import io.ktor.http.HttpMethod
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -183,5 +184,71 @@ class SearchScreenInstrumentedTest {
             recordingNavigator.destinations,
         )
         assertEquals(0, recordingNavigator.backCount)
+    }
+
+    @Test
+    fun searchFilterMenuRefreshesResultsWithZhihuFilterParameters() {
+        ZhihuMockApi.mockJsonPrefix(
+            method = HttpMethod.Get,
+            urlPrefix = "https://www.zhihu.com/api/v4/search_v3?",
+            body =
+                """
+                {
+                  "data": [],
+                  "paging": {
+                    "is_end": true,
+                    "is_start": true,
+                    "totals": 0,
+                    "next": ""
+                  }
+                }
+                """.trimIndent(),
+        )
+
+        composeRule.setScreenContent {
+            SearchScreen(
+                search = Search(query = "deepseek"),
+            )
+        }
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            ZhihuMockApi.requestCount(
+                method = HttpMethod.Get,
+                urlSubstring = "/api/v4/search_v3",
+            ) == 1
+        }
+
+        composeRule.onNodeWithTag("search_filter_button").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("search_filter_sort_Latest").assertIsDisplayed().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            ZhihuMockApi.requestCount(
+                method = HttpMethod.Get,
+                urlSubstring = "/api/v4/search_v3",
+            ) == 2
+        }
+        val latestRequest = ZhihuMockApi
+            .recordedRequests()
+            .last { it.url.contains("/api/v4/search_v3") }
+            .url
+        assertTrue(latestRequest.contains("search_source=Filter"))
+        assertTrue(latestRequest.contains("sort=created_time"))
+
+        composeRule.onNodeWithTag("search_filter_button").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("search_filter_type_Answer").assertIsDisplayed().performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            ZhihuMockApi.requestCount(
+                method = HttpMethod.Get,
+                urlSubstring = "/api/v4/search_v3",
+            ) == 3
+        }
+        val answerRequest = ZhihuMockApi
+            .recordedRequests()
+            .last { it.url.contains("/api/v4/search_v3") }
+            .url
+        assertTrue(answerRequest.contains("sort=created_time"))
+        assertTrue(answerRequest.contains("vertical=answer"))
+        assertTrue(answerRequest.contains("vertical_info=0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0%2C0"))
     }
 }
