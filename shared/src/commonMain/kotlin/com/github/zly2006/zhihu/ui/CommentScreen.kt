@@ -152,6 +152,10 @@ import com.github.zly2006.zhihu.platform.rememberSettingsStore
 import com.github.zly2006.zhihu.reading.ReadingCommentOrder
 import com.github.zly2006.zhihu.reading.loadReadingPreferences
 import com.github.zly2006.zhihu.reading.saveReadingPreferences
+import com.github.zly2006.zhihu.ui.components.PageTurnFab
+import com.github.zly2006.zhihu.ui.components.pageTurnContentEndMarker
+import com.github.zly2006.zhihu.ui.components.pageTurnViewportWithGuide
+import com.github.zly2006.zhihu.ui.components.rememberPageTurnTarget
 import com.github.zly2006.zhihu.ui.components.replaceSelection
 import com.github.zly2006.zhihu.ui.subscreens.PREF_FONT_SIZE
 import com.github.zly2006.zhihu.ui.subscreens.PREF_LINE_HEIGHT
@@ -442,6 +446,8 @@ fun CommentScreen(
     listState: LazyListState = rememberLazyListState(),
     initialComment: DataHolder.Comment? = null,
     onInitialChildCommentResolved: (CommentModel, DataHolder.Comment) -> Unit = { _, _ -> },
+    pageTurnEnabled: Boolean = false,
+    showPageTurnFab: Boolean = false,
 ) {
     val paginationEnvironment = rememberPaginationEnvironment(allowGuestAccess = false)
     val readingSettings = rememberSettingsStore()
@@ -455,6 +461,15 @@ fun CommentScreen(
     var commentPendingDeletion by remember { mutableStateOf<CommentModel?>(null) }
     var isDeletingComment by remember { mutableStateOf(false) }
     var deleteCommentError by remember { mutableStateOf<String?>(null) }
+    var isCommentInputFocused by remember { mutableStateOf(false) }
+    val pageTurnActive = pageTurnEnabled &&
+        !showEmojiPicker &&
+        !isCommentInputFocused &&
+        commentPendingDeletion == null
+    val pageTurnTarget = rememberPageTurnTarget(
+        listState = listState,
+        enabled = pageTurnActive,
+    )
     val initialTargetId = initialCommentId ?: initialComment?.id
     val viewModelKey = resolvedContent.commentThreadKey() + initialTargetId?.let { ":initial:$it" }.orEmpty()
     val focusManager = LocalFocusManager.current
@@ -814,6 +829,7 @@ fun CommentScreen(
                                 state = listState,
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .pageTurnViewportWithGuide(pageTurnTarget)
                                     .testTag(COMMENT_SCREEN_LIST_TAG),
                                 contentPadding = PaddingValues(bottom = 16.dp, start = 16.dp, end = 16.dp, top = 8.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -964,6 +980,10 @@ fun CommentScreen(
                                     }
                                 }
 
+                                if (viewModel.isEnd && viewModel.allData.isNotEmpty()) {
+                                    pageTurnContentEndMarker()
+                                }
+
                                 if (viewModel.isLoading && viewModel.allData.isNotEmpty()) {
                                     item(key = "loading_indicator") {
                                         Box(
@@ -1089,6 +1109,7 @@ fun CommentScreen(
                                     .weight(1f)
                                     .focusRequester(commentInputFocusRequester)
                                     .onFocusChanged {
+                                        isCommentInputFocused = it.isFocused
                                         if (it.isFocused) showEmojiPicker = false
                                     }.testTag(COMMENT_INPUT_TAG),
                                 decorationBox = { inner ->
@@ -1201,6 +1222,11 @@ fun CommentScreen(
                     }
                 }
             }
+        }
+        if (showPageTurnFab) {
+            PageTurnFab(
+                preferenceName = "fabPageTurnComment",
+            )
         }
     }
 }
