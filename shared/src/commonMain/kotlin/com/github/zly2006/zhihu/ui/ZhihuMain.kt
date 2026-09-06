@@ -941,6 +941,7 @@ private fun MainTabsPager(
                     scrollToTopTrigger = scrollToTopTrigger,
                     innerPadding = innerPadding,
                     showTopActions = showHomeTopActions,
+                    isActive = pagerState.currentPage == pageIndex,
                 )
             }
             // 上游把关注的「推荐/动态」两个 pager 页合并成一页，页内自带 tab 并接管父 pager 手势。
@@ -955,6 +956,7 @@ private fun MainTabsPager(
                     scrollToTopTrigger = scrollToTopTrigger,
                     innerPadding = innerPadding,
                     parentPagerState = pagerState,
+                    isActive = pagerState.currentPage == pageIndex,
                 )
             }
             MainTabPage.HotListPage -> if (ThemeManager.getThemeStyle() == ThemeStyle.Miuix) {
@@ -1001,7 +1003,7 @@ private fun MainTabsPager(
             MainTabPage.AccountPage -> if (ThemeManager.getThemeStyle() == ThemeStyle.Miuix) {
                 MiuixAccountSettingScreen(innerPadding)
             } else {
-                AccountSettingScreen(innerPadding)
+                AccountSettingScreen(innerPadding, isActive = pagerState.currentPage == pageIndex)
             }
         }
     }
